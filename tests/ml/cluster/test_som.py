@@ -10,10 +10,6 @@ try:
 except ImportError:
     pass
 
-from mock import Mock, patch
-from sklearn.datasets import make_blobs
-
-from dasf.ml.cluster import SOM
 from dasf.utils.funcs import is_gpu_supported
 from dasf.utils.types import (
     is_cpu_array,
@@ -21,6 +17,10 @@ from dasf.utils.types import (
     is_dask_gpu_array,
     is_gpu_array,
 )
+from mock import Mock, patch
+from sklearn.datasets import make_blobs
+
+from dasf_extras.ml.cluster import SOM
 
 
 class TestSOM(unittest.TestCase):
