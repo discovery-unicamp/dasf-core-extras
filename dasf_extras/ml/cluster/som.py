@@ -3,11 +3,10 @@
 """ Kohonen's Self-Organized Map (SOM) algorithm module. """
 
 import numpy as np
-from xpysom_dask import XPySom
-
 from dasf.ml.cluster.classifier import ClusterClassifier
 from dasf.utils.decorators import task_handler
 from dasf.utils.funcs import is_gpu_supported
+from xpysom_dask import XPySom
 
 try:
     import cupy as cp
