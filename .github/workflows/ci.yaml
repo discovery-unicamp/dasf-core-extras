@@ -1,0 +1,119 @@
+---
+name: Continuous Test
+
+on:
+  push:
+    branches:
+      - 'main'
+  pull_request: {}
+
+jobs:
+  lint:
+    environment: continuous_test
+    strategy:
+      matrix:
+        # Run for Python 3.8 only for now
+        python-version: ['3.8']
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          pip install isort flake8 interrogate
+          echo "## CI/CD Summary :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "-------------------------" >> $GITHUB_STEP_SUMMARY
+      - name: Check imports with isort
+        run: |
+          # Show the diffs for debugging
+          isort -c dasf_extras/
+          if [[ $? -ne 0 ]] ; then
+              echo "* **isort results:**" >> $GITHUB_STEP_SUMMARY
+              echo "```diff" >> $GITHUB_STEP_SUMMARY
+              isort -c --df dasf_extras/ >> $GITHUB_STEP_SUMMARY
+              echo "```" >> $GITHUB_STEP_SUMMARY
+              exit 1
+          else
+              echo "* **isort results:** :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+              exit 0
+          fi
+      - name: Lint with flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 dasf_extras/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 dasf_extras/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          if [[ $? -ne 0 ]] ; then
+              echo "* **flake8 results:**" >> $GITHUB_STEP_SUMMARY
+              echo "```python" >> $GITHUB_STEP_SUMMARY
+              flake8 dasf_extras/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics >> $GITHUB_STEP_SUMMARY
+              echo "```" >> $GITHUB_STEP_SUMMARY
+              exit 1
+          else
+              echo "* **flake8 results:** :white_check_mark:" >> $GITHUB_STEP_SUMMARY
+              exit 0
+          fi
+      - name: Doc lint with interrogate
+        run: |
+          echo "* **interrogate results:** $(interrogate -i --fail-under=15 dasf_extras/ | cut -d: -d" " -f4)" >> $GITHUB_STEP_SUMMARY
+          # We should have at least 80% of docs covered
+          interrogate -vv -i --fail-under=45 --badge-format svg -g /tmp/ -e build/ -e tests/
+
+  test_cpu:
+    runs-on: ubuntu-latest
+    environment: continuous_test
+    needs: [lint]
+    container:
+      image: docker.io/jcfaracco/dasf:cpu_ci
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          pip install pytest-coverage
+      - name: Run test cases
+        run: |
+          pytest tests/
+
+#  test_gpu:
+#    runs-on: ubuntu-latest
+#    environment: continuous_test
+#    needs: [lint]
+#    # Skip this test for PRs due to dangerous code submitted.
+#    if: ${{ github.event_name != 'pull_request' }}
+#    steps:
+#      - name: Checkout 🛎
+#        uses: actions/checkout@master
+#      - name: Setup SSH
+#        run: |
+#          mkdir -p ~/.ssh/
+#          sudo apt-get update
+#          sudo apt-get install sshpass -y
+#          ssh-keyscan -H ${{ secrets.CLUSTER_ADDRESS }} >> ~/.ssh/known_hosts
+#      - name: Test SSH connection
+#        id: test_connection
+#        run: |
+#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh -T ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 > /dev/null
+#      - name: Pull latest docker image
+#        run: |
+#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "ssh ${{ secrets.CLUSTER_GPU_ID }} \"docker pull jcfaracco/dasf:gpu\""
+#      - name: Clean up running containers
+#        run: |
+#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "ssh ${{ secrets.CLUSTER_GPU_ID }} \"docker stop dasf_core_github || true && docker rm -f dasf_core_github || true\""
+#      - name: Run test cases remotely
+#        run: |
+#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "ssh ${{ secrets.CLUSTER_GPU_ID }} \"docker run --name dasf_core_github --gpus all -v \$HOME:/data/:rw jcfaracco/dasf:gpu sh -c 'pip3 install pytest parameterized pytest-cov pip --upgrade && rm -rf dasf-core && git clone https://github.com/discovery-unicamp/dasf-core.git && cd dasf-core/ && pip3 uninstall dasf -y && pip3 install . && pytest --cov dasf/ --cov-report term --cov-report html --cov-report xml:/data/coverage.xml tests/ && cd -'\""
+#      - name: Clean up the last container
+#        run: |
+#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "ssh ${{ secrets.CLUSTER_GPU_ID }} \"docker stop dasf_core_github || true && docker rm -f dasf_core_github || true\""
+#      - name: Generate artifacts path
+#        run: mkdir -p deployment/gpu/tests/
+#      Disable coverage upload for now
+#      - name: Generate coverage.xml
+#        run: |
+#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "scp ${{ secrets.CLUSTER_GPU_ID }}:/tmp/coverage.xml /tmp"
+#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} scp -P 8686 ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }}:/tmp/coverage.xml deployment/gpu/tests/
+#      - name: Upload artifacts
+#         uses: actions/upload-artifact@v4
+#        with:
+#          name: coverage
+#          path: deployment/gpu/tests/coverage.xml
