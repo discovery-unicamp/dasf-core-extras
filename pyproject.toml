@@ -1,0 +1,53 @@
+[tool.poetry]
+name = "dasf-extras"
+version = "1.0.beta.6"
+description = "DASF is an Accelerated Framework for Machine Learning (extras)"
+authors = ["Julio Faracco <jcfaracco@gmail.com>"]
+maintainers = ["Julio Faracco <jcfaracco@gmail.com>"]
+license = "GPLv3"
+homepage = "https://github.com/discovery-unicamp/dasf-core-extras"
+repository = "https://github.com/discovery-unicamp/dasf-core-extras"
+classifiers = [
+    "Development Status :: 6 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+    "Environment :: GPU :: NVIDIA CUDA",
+]
+readme="README.md"
+exclude = ["tests/*", "docs/*"]
+
+[tool.poetry.dependencies]
+dasf = "^1.0b5"
+xpysom-dask = { git = "https://github.com/jcfaracco/xpysom-dask#egg=master" }
+
+
+[tool.poetry.group.dev.dependencies]
+black = "*"
+coverage = "*"
+flake8 = "*"
+interrogate = "*"
+isort = "*"
+mock = "*"
+parameterized = "*"
+pytest = "*"
+pytest-cov = "*"
+wheel = "*"
+
+[tool.isort]
+profile = "black"
+
+[tool.coverage.paths]
+source = ["dasf_extras", "*/site-packages"]
+
+[tool.coverage.run]
+branch = true
+source = ["dasf_extras"]
+
+[build-system]
+requires = ["poetry-core>=1.1.10"]
+build-backend = "poetry.core.masonry.api"
