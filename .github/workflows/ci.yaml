@@ -72,7 +72,10 @@ jobs:
           pip install pytest-coverage
       - name: Install package
         run: |
-          pip install -e .
+          python3 -m pip install --upgrade pip
+          # TODO: find a way to avoid installation errors with PL
+          pip3 uninstall pytorch-lightning -y
+          pip3 install -e .
       - name: Run test cases
         run: |
           pytest tests/
