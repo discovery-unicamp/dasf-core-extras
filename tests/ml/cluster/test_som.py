@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+""" All the tests related to dasf_extras.ml.cluster.som. """
+
 import unittest
 
 import dask.array as da
@@ -24,7 +26,9 @@ from dasf_extras.ml.cluster import SOM
 
 
 class TestSOM(unittest.TestCase):
+    """ Test SOM ML operator. """
     def setUp(self):
+        """ Setup method to create the common variables. """
         self.size = 1000
         self.centers = 3
         random_state = 42
@@ -42,6 +46,7 @@ class TestSOM(unittest.TestCase):
             cp.random.seed(1234)
 
     def test_som_cpu(self):
+        """ Test SOM computation in local CPUs only. """
         som = SOM(x=3, y=2, input_len=2, num_epochs=300)
 
         q1 = som._quantization_error_cpu(self.X)
@@ -56,6 +61,7 @@ class TestSOM(unittest.TestCase):
         self.assertTrue(q1 > q2)
 
     def test_som_mcpu(self):
+        """ Test SOM computation in multi node CPUs. """
         som = SOM(x=3, y=2, input_len=2, num_epochs=300)
 
         da_X = da.from_array(self.X, meta=np.array((), dtype=np.float32))
@@ -74,6 +80,7 @@ class TestSOM(unittest.TestCase):
     @unittest.skipIf(not is_gpu_supported(),
                      "not supported CUDA in this platform")
     def test_som_gpu(self):
+        """ Test SOM computation in local GPUs only. """
         som = SOM(x=3, y=2, input_len=2, num_epochs=300)
 
         cp_X = cp.asarray(self.X)
@@ -92,6 +99,7 @@ class TestSOM(unittest.TestCase):
     @unittest.skipIf(not is_gpu_supported(),
                      "not supported CUDA in this platform")
     def test_som_mgpu(self):
+        """ Test SOM computation in multi node GPUs. """
         som = SOM(x=3, y=2, input_len=2, num_epochs=300)
 
         da_X = da.from_array(cp.asarray(self.X), meta=cp.array((), dtype=cp.float32))
@@ -111,6 +119,7 @@ class TestSOM(unittest.TestCase):
     @patch('dasf.utils.decorators.is_dask_supported', Mock(return_value=True))
     @patch('dasf.utils.decorators.is_dask_gpu_supported', Mock(return_value=False))
     def test_som_mcpu_local(self):
+        """ Test SOM computation in multi node CPUs locally. """
         som = SOM(x=3, y=2, input_len=2, num_epochs=300, run_local=True)
 
         da_X = da.from_array(self.X, meta=np.array((), dtype=np.float32))
@@ -128,6 +137,7 @@ class TestSOM(unittest.TestCase):
         self.assertTrue(q1 > q2)
 
     def test_som_2_cpu(self):
+        """ Test SOM (fit_predict) computation in local CPUs only. """
         som = SOM(x=3, y=2, input_len=2, num_epochs=300)
 
         q1 = som._quantization_error_cpu(self.X)
@@ -140,6 +150,7 @@ class TestSOM(unittest.TestCase):
         self.assertTrue(q1 > q2)
 
     def test_som_2_mcpu(self):
+        """ Test SOM (fit_predict) computation in multi node CPUs. """
         som = SOM(x=3, y=2, input_len=2, num_epochs=300)
 
         da_X = da.from_array(self.X, meta=np.array((), dtype=np.float32))
@@ -156,6 +167,7 @@ class TestSOM(unittest.TestCase):
     @unittest.skipIf(not is_gpu_supported(),
                      "not supported CUDA in this platform")
     def test_som_2_gpu(self):
+        """ Test SOM (fit_predict) computation in local GPUs only. """
         som = SOM(x=3, y=2, input_len=2, num_epochs=300)
 
         cp_X = cp.asarray(self.X)
@@ -172,6 +184,7 @@ class TestSOM(unittest.TestCase):
     @unittest.skipIf(not is_gpu_supported(),
                      "not supported CUDA in this platform")
     def test_som_2_mgpu(self):
+        """ Test SOM (fit_predict) computation in multi node GPUs. """
         som = SOM(x=3, y=2, input_len=2, num_epochs=300)
 
         da_X = da.from_array(cp.asarray(self.X), meta=cp.array((), dtype=cp.float32))
