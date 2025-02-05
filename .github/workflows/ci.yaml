@@ -80,39 +80,40 @@ jobs:
         run: |
           pytest tests/
 
-#  test_gpu:
-#    runs-on: ubuntu-latest
-#    environment: continuous_test
-#    needs: [lint]
-#    # Skip this test for PRs due to dangerous code submitted.
-#    if: ${{ github.event_name != 'pull_request' }}
-#    steps:
-#      - name: Checkout 🛎
-#        uses: actions/checkout@master
-#      - name: Setup SSH
-#        run: |
-#          mkdir -p ~/.ssh/
-#          sudo apt-get update
-#          sudo apt-get install sshpass -y
-#          ssh-keyscan -H ${{ secrets.CLUSTER_ADDRESS }} >> ~/.ssh/known_hosts
-#      - name: Test SSH connection
-#        id: test_connection
-#        run: |
-#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh -T ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 > /dev/null
-#      - name: Pull latest docker image
-#        run: |
-#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "ssh ${{ secrets.CLUSTER_GPU_ID }} \"docker pull jcfaracco/dasf:gpu\""
-#      - name: Clean up running containers
-#        run: |
-#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "ssh ${{ secrets.CLUSTER_GPU_ID }} \"docker stop dasf_core_github || true && docker rm -f dasf_core_github || true\""
-#      - name: Run test cases remotely
-#        run: |
-#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "ssh ${{ secrets.CLUSTER_GPU_ID }} \"docker run --name dasf_core_github --gpus all -v \$HOME:/data/:rw jcfaracco/dasf:gpu sh -c 'pip3 install pytest parameterized pytest-cov pip --upgrade && rm -rf dasf-core && git clone https://github.com/discovery-unicamp/dasf-core.git && cd dasf-core/ && pip3 uninstall dasf -y && pip3 install . && pytest --cov dasf/ --cov-report term --cov-report html --cov-report xml:/data/coverage.xml tests/ && cd -'\""
-#      - name: Clean up the last container
-#        run: |
-#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "ssh ${{ secrets.CLUSTER_GPU_ID }} \"docker stop dasf_core_github || true && docker rm -f dasf_core_github || true\""
-#      - name: Generate artifacts path
-#        run: mkdir -p deployment/gpu/tests/
+  test_gpu:
+    runs-on: ubuntu-latest
+    environment: continuous_test
+    needs: [lint]
+    # Skip this test for PRs due to dangerous code submitted.
+    if: ${{ github.event_name != 'pull_request' }}
+    steps:
+      - name: Checkout 🛎
+        uses: actions/checkout@master
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh/
+          echo -e "${{ secrets.CLUSTER_SSH_CONFIG }}" > ~/.ssh/config
+          echo -e "${{ secrets.CLUSTER_SSH_PRIV_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/*
+          ssh-keyscan -H ${{ secrets.CLUSTER_ADDRESS }} >> ~/.ssh/known_hosts
+      - name: Test SSH connection
+        id: test_connection
+        run: |
+          ssh -o StrictHostKeyChecking=accept-new -T ${{ secrets.CLUSTER_GPU_ID }} exit > /dev/null
+      - name: Pull latest docker image
+        run: |
+          ssh ${{ secrets.CLUSTER_GPU_ID }} "docker pull jcfaracco/dasf:gpu"
+      - name: Clean up running containers
+        run: |
+          ssh ${{ secrets.CLUSTER_GPU_ID }} "docker stop dasf_core_github || true && docker rm -f dasf_core_github || true"
+      - name: Run test cases remotely
+        run: |
+          ssh ${{ secrets.CLUSTER_GPU_ID }} "docker run --name dasf_core_github --gpus all -v \$HOME:/data/:rw jcfaracco/dasf:gpu sh -c 'pip3 install pytest parameterized pytest-cov pip --upgrade && rm -rf dasf-core-extras && git clone https://github.com/discovery-unicamp/dasf-core-extras.git && cd dasf-core-extras/ && pip3 uninstall pytorch-lightning -y && pip3 install -e . && mkdir -p /data/dasf-core-extras/ && pytest --cov dasf_extras/ --cov-report term --cov-report html --cov-report xml:/data/dasf-core-extras/coverage.xml tests/ && cd -'"
+      - name: Clean up the last container
+        run: |
+          ssh ${{ secrets.CLUSTER_GPU_ID }} "docker stop dasf_core_github || true && docker rm -f dasf_core_github || true"
+      - name: Generate artifacts path
+        run: mkdir -p deployment/gpu/tests/
 #      Disable coverage upload for now
 #      - name: Generate coverage.xml
 #        run: |
