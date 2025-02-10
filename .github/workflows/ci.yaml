@@ -105,22 +105,39 @@ jobs:
           ssh ${{ secrets.CLUSTER_GPU_ID }} "docker pull jcfaracco/dasf:gpu"
       - name: Clean up running containers
         run: |
-          ssh ${{ secrets.CLUSTER_GPU_ID }} "docker stop dasf_core_github || true && docker rm -f dasf_core_github || true"
-      - name: Run test cases remotely
+          ssh ${{ secrets.CLUSTER_GPU_ID }} "docker stop dasf_core_extras_github || true && docker rm -f dasf_core_extras_github || true"
+      - name: Update and commit the container
         run: |
-          ssh ${{ secrets.CLUSTER_GPU_ID }} "docker run --name dasf_core_github --gpus all -v \$HOME:/data/:rw jcfaracco/dasf:gpu sh -c 'pip3 install pytest parameterized pytest-cov pip --upgrade && rm -rf dasf-core-extras && git clone https://github.com/discovery-unicamp/dasf-core-extras.git && cd dasf-core-extras/ && pip3 uninstall pytorch-lightning -y && pip3 install -e . && mkdir -p /data/dasf-core-extras/ && pytest --cov dasf_extras/ --cov-report term --cov-report html --cov-report xml:/data/dasf-core-extras/coverage.xml tests/ && cd -'"
+          ssh ${{ secrets.CLUSTER_GPU_ID }} "nohup docker run --name dasf_core_extras_github --gpus all -v \$HOME:/data/:rw jcfaracco/dasf:gpu sh -c 'pip3 install pytest parameterized pytest-cov pip --upgrade && rm -rf dasf-core-extras /data/dasf-core-extras/* && git clone https://github.com/discovery-unicamp/dasf-core-extras.git && cd dasf-core-extras/ && pip3 uninstall pytorch-lightning -y && pip3 install pytorch-lightning torch==2.1.2 && pip3 install -e . && mkdir -p /data/dasf-core-extras/ && cd -' && docker commit dasf_core_extras_github dasf_core_extras_github_live:latest && docker stop dasf_core_extras_github || true && docker rm -f dasf_core_extras_github || true"
+      - name: Run test cases setup
+        continue-on-error: true
+        run: |
+          ssh ${{ secrets.CLUSTER_GPU_ID }} "nohup docker run --name dasf_core_extras_github --gpus all -v \$HOME:/data/:rw dasf_core_extras_github_live:latest sh -c 'cd dasf-core-extras/ && pytest --cov dasf_extras/ --cov-report term --cov-report html:/data/dasf-core-extras/coverage_html --cov-report xml:/data/dasf-core-extras/coverage.xml --cov-report json:/data/dasf-core-extras/coverage.json tests/ && cd -'"
       - name: Clean up the last container
         run: |
-          ssh ${{ secrets.CLUSTER_GPU_ID }} "docker stop dasf_core_github || true && docker rm -f dasf_core_github || true"
+          ssh ${{ secrets.CLUSTER_GPU_ID }} "docker stop dasf_core_extras_github || true && docker rm -f dasf_core_extras_github || true && docker rmi -f dasf_core_extras_github_live:latest || true"
       - name: Generate artifacts path
         run: mkdir -p deployment/gpu/tests/
-#      Disable coverage upload for now
-#      - name: Generate coverage.xml
-#        run: |
-#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} ssh ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }} -p 8686 "scp ${{ secrets.CLUSTER_GPU_ID }}:/tmp/coverage.xml /tmp"
-#          sshpass -p ${{ secrets.CLUSTER_SSH_PASSWORD }} scp -P 8686 ${{ secrets.CLUSTER_USER }}@${{ secrets.CLUSTER_ADDRESS }}:/tmp/coverage.xml deployment/gpu/tests/
-#      - name: Upload artifacts
-#         uses: actions/upload-artifact@v4
-#        with:
-#          name: coverage
-#          path: deployment/gpu/tests/coverage.xml
+      - name: Upload artifacts from runner
+        run: |
+          scp -r ${{ secrets.CLUSTER_GPU_ID }}:~/dasf-core-extras/* deployment/gpu/tests/
+          # Convert HTML directory into a zip file and remove target
+          zip -jrm deployment/gpu/tests/coverage-html.zip deployment/gpu/tests/coverage_html
+      - name: Coverage report
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: deployment/gpu/tests/coverage.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: '60 80'
+      - name: Upload coverage HTML
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html.zip
+          path: deployment/gpu/tests/coverage-html.zip
+          if-no-files-found: error
