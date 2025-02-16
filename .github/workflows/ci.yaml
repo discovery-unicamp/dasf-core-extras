@@ -69,13 +69,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install dependencies
         run: |
-          pip install pytest-coverage
-      - name: Install package
+          pip install pytest-coverage --user --break-system-packages
+      - name: Install project
         run: |
-          python3 -m pip install --upgrade pip
-          # TODO: find a way to avoid installation errors with PL
-          pip3 uninstall pytorch-lightning -y
-          pip3 install -e .
+          pip install -e . --break-system-packages
       - name: Run test cases
         run: |
           pytest tests/
