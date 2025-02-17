@@ -106,7 +106,7 @@ jobs:
           ssh ${{ secrets.CLUSTER_GPU_ID }} "docker stop dasf_core_extras_github || true && docker rm -f dasf_core_extras_github || true"
       - name: Update and commit the container
         run: |
-          ssh ${{ secrets.CLUSTER_GPU_ID }} "nohup docker run --name dasf_core_extras_github --gpus all -v \$HOME:/data/:rw jcfaracco/dasf:gpu sh -c 'pip3 install pytest parameterized pytest-cov pip git+https://github.com/discovery-unicamp/dasf-core.git --upgrade && rm -rf dasf-core-extras /data/dasf-core-extras/* && git clone https://github.com/discovery-unicamp/dasf-core-extras.git && cd dasf-core-extras/ && pip3 install -e . && mkdir -p /data/dasf-core-extras/ && cd -' && docker commit dasf_core_extras_github dasf_core_extras_github_live:latest && docker stop dasf_core_extras_github || true && docker rm -f dasf_core_extras_github || true"
+          ssh ${{ secrets.CLUSTER_GPU_ID }} "nohup docker run --name dasf_core_extras_github --gpus all -v \$HOME:/data/:rw jcfaracco/dasf:gpu sh -c 'pip3 install pytest parameterized pytest-cov pip git+https://github.com/discovery-unicamp/dasf-core.git --upgrade && rm -rf dasf-core-extras /data/dasf-core-extras/* && git clone https://github.com/discovery-unicamp/dasf-core-extras.git && cd dasf-core-extras/ && pip3 install -e . && pip3 install dask==2024.4.1 distributed==2024.4.1 dask[dataframe] && mkdir -p /data/dasf-core-extras/ && cd -' && docker commit dasf_core_extras_github dasf_core_extras_github_live:latest && docker stop dasf_core_extras_github || true && docker rm -f dasf_core_extras_github || true"
       - name: Run test cases setup
         continue-on-error: true
         run: |
